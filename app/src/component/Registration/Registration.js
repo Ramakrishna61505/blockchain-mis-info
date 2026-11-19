@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 // Components
 import Navbar from '../Navbar/Navigation';
 import NavbarAdmin from '../Navbar/NavigationAdmin';
+import ConfirmModal from '../ConfirmModal';
 
 // CSS
 import './Registration.css';
@@ -37,6 +38,7 @@ export default class Registration extends Component {
         isVerified: false,
         isRegistered: false,
       },
+      confirmModal: null,
     };
   }
 
@@ -126,11 +128,45 @@ export default class Registration extends Component {
     } catch (error) {
       // Catch any errors for any of the above operations.
       console.error(error);
-      alert(
-        `Failed to load web3, accounts, or contract. Check console for details (f12).`
+      this.openAlertModal(
+        "Connection Error",
+        "Failed to load web3, accounts, or contract. Check console for details.",
+        "danger"
       );
     }
   };
+
+  openAlertModal = (title, message, type = 'info') => {
+    this.setState({
+      confirmModal: {
+        isOpen: true,
+        type: type,
+        title: title,
+        message: message,
+        confirmText: 'Dismiss',
+        isProcessing: false,
+        onClose: () => this.setState({ confirmModal: null }),
+        onConfirm: () => this.setState({ confirmModal: null }),
+      },
+    });
+  };
+
+  switchMetaMaskAccount = async () => {
+    try {
+      if (window.ethereum) {
+        await window.ethereum.request({
+          method: "wallet_requestPermissions",
+          params: [{ eth_accounts: {} }],
+        });
+        window.location.reload();
+      } else {
+        this.openAlertModal("MetaMask Not Detected", "Please install or unlock the MetaMask browser extension.", "warning");
+      }
+    } catch (err) {
+      console.error("Account switch error:", err);
+    }
+  };
+
   updateEvaluatorName = (event) => {
     this.setState({ evaluatorName: event.target.value });
   };
@@ -140,26 +176,62 @@ export default class Registration extends Component {
   updateEvaluatorProfession = (event) => {
     this.setState({ evaluatorProfession: event.target.value });
   };  
-  registerAsEvaluator = async (event) => {
+
+  promptRegister = (event) => {
     if (event && event.preventDefault) {
       event.preventDefault();
     }
-    if (!this.state.evaluatorName || !this.state.evaluatorIdn) {
-      alert("Please fill in both Name and ID.");
+    const { evaluatorName, evaluatorIdn, evaluatorProfession, account } = this.state;
+    if (!evaluatorName || !evaluatorIdn) {
+      this.openAlertModal("Required Information Missing", "Please provide both your Name and ID number to register.", "warning");
       return;
     }
+
+    this.setState({
+      confirmModal: {
+        isOpen: true,
+        type: 'confirm',
+        title: 'Register Evaluator Identity',
+        message: `You are about to register on the blockchain as: ${evaluatorName} (${evaluatorProfession || 'Fact-Checker'}), ID: ${evaluatorIdn}. Address: ${account}. An admin will authenticate your profile before you can submit evaluation votes.`,
+        confirmText: 'Sign & Register on Chain',
+        cancelText: 'Cancel',
+        isProcessing: false,
+        onClose: () => this.setState({ confirmModal: null }),
+        onConfirm: this.registerAsEvaluator,
+      },
+    });
+  };
+
+  registerAsEvaluator = async () => {
+    const { evaluatorName, evaluatorIdn, evaluatorProfession, account, newsDetectionInstance } = this.state;
+
+    this.setState((prev) => ({
+      confirmModal: prev.confirmModal
+        ? { ...prev.confirmModal, isProcessing: true, processingText: 'Signing registration in MetaMask...' }
+        : null,
+    }));
+
     try {
-      await this.state.newsDetectionInstance.methods
+      await newsDetectionInstance.methods
         .registerAsEvaluator(
-          this.state.evaluatorName,
-          String(this.state.evaluatorIdn),
-          this.state.evaluatorProfession || "Evaluator"
+          evaluatorName,
+          String(evaluatorIdn),
+          evaluatorProfession || "Evaluator"
         )
-        .send({ from: this.state.account, gas: 1000000 });
+        .send({ from: account, gas: 1000000 });
+
+      this.setState({ confirmModal: null });
       window.location.reload();
     } catch (error) {
       console.error("Registration error:", error);
-      alert("Failed to register as evaluator: " + (error.message || "Check MetaMask for details."));
+      this.setState({ confirmModal: null });
+      this.openAlertModal(
+        "Registration Cancelled",
+        error.message?.includes("User denied")
+          ? "You rejected the transaction in MetaMask."
+          : `Failed to register evaluator on blockchain: ${error.message || "Unknown error"}`,
+        "warning"
+      );
     }
   };
   render() {
@@ -199,15 +271,42 @@ export default class Registration extends Component {
             <div className="container-item bg-slate-800 mt-4">
               <form className="w-full max-w-xl">
                 <div className="div-li w-full mb-4">
-                  <label className="label-r text-white">
-                    Account Address
-                    <input
-                      className="bg-slate-900 border border-slate-700 shadow-md rounded p-3 block mt-2 w-full text-slate-300 text-sm font-mono"
-                      type="text"
-                      value={this.state.account || ''}
-                      readOnly
-                    />
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="label-r text-white">Account Address</label>
+                    <button
+                      type="button"
+                      onClick={this.switchMetaMaskAccount}
+                      className="text-xs bg-sky-600 hover:bg-sky-500 text-white font-medium py-1 px-3 rounded-lg transition-colors flex items-center gap-1 shadow"
+                    >
+                      🦊 Switch Account in MetaMask
+                    </button>
+                  </div>
+                  <input
+                    className="bg-slate-900 border border-slate-700 shadow-md rounded p-3 block mt-2 w-full text-slate-300 text-sm font-mono"
+                    type="text"
+                    value={this.state.account || ''}
+                    readOnly
+                  />
+                  {this.state.isAdmin && (
+                    <div className="mt-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <span>⚠ You are connected with the <strong>Admin Account</strong>. Admins manage news and verify evaluators. Switch in MetaMask to register as an Evaluator.</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={this.switchMetaMaskAccount}
+                          className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-1 px-2.5 rounded text-[11px] whitespace-nowrap"
+                        >
+                          Switch Wallet
+                        </button>
+                        <Link
+                          to="/"
+                          className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-1 px-2.5 rounded text-[11px] whitespace-nowrap"
+                        >
+                          Admin Portal &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  )}
                 </div>
                   <div className="div-li">
                     <label className={'label-r text-white'}>
@@ -260,17 +359,17 @@ export default class Registration extends Component {
                   )}
                   <button
                     type="button"
-                    className="bg-sky-500 hover:bg-blue-700 text-white font-bold py-2 px-5 mt-5 rounded cursor-pointer disabled:opacity-50"
+                    className="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2.5 px-6 mt-5 rounded-xl cursor-pointer disabled:opacity-50 transition-all shadow-lg"
                     disabled={
                       !this.state.evaluatorName ||
                       !this.state.evaluatorIdn ||
                       this.state.currentEvaluator.isVerified
                     }
-                    onClick={this.registerAsEvaluator}
+                    onClick={this.promptRegister}
                   >
                     {this.state.currentEvaluator.isRegistered
-                      ? 'Update'
-                      : 'Register'}
+                      ? 'Update Registration'
+                      : 'Register Profile on Chain'}
                   </button>
                 </form>
               </div>
@@ -299,6 +398,22 @@ export default class Registration extends Component {
             ) : null}
           </div>
         </div>
+
+        {/* Custom Animated Modal */}
+        {this.state.confirmModal && (
+          <ConfirmModal
+            isOpen={this.state.confirmModal.isOpen}
+            type={this.state.confirmModal.type}
+            title={this.state.confirmModal.title}
+            message={this.state.confirmModal.message}
+            confirmText={this.state.confirmModal.confirmText}
+            cancelText={this.state.confirmModal.cancelText}
+            isProcessing={this.state.confirmModal.isProcessing}
+            processingText={this.state.confirmModal.processingText}
+            onClose={this.state.confirmModal.onClose || (() => this.setState({ confirmModal: null }))}
+            onConfirm={this.state.confirmModal.onConfirm}
+          />
+        )}
       </div>
     );
   }

@@ -24,6 +24,7 @@ const resolveWeb3 = async (resolve, reject) => {
         window.__hasRegisteredEthereumEvents = true;
         window.ethereum.on("accountsChanged", () => {
           cachedWeb3 = null;
+          localStorage.removeItem('preferredPortal');
           window.location.reload();
         });
         window.ethereum.on("chainChanged", () => {

@@ -15,6 +15,7 @@ import {
 import Navbar from './Navbar/Navigation';
 import NavbarAdmin from './Navbar/NavigationAdmin';
 import UserHome from './UserHome';
+import ConfirmModal from './ConfirmModal';
 
 // Contract
 import getWeb3 from '../getWeb3';
@@ -35,6 +36,7 @@ export default class Home extends Component {
       elEnded: false,
       elDetails: {},
       portalView: localStorage.getItem('preferredPortal') || 'auto',
+      confirmModal: null,
     };
   }
 
@@ -64,9 +66,14 @@ export default class Home extends Component {
       const admin = await this.state.newsDetectionInstance.methods
         .getAdmin()
         .call();
-      if (this.state.account && admin && this.state.account.toLowerCase() === admin.toLowerCase()) {
-        this.setState({ isAdmin: true });
-      }
+      const isAdmin = Boolean(
+        this.state.account && admin && this.state.account.toLowerCase() === admin.toLowerCase()
+      );
+      this.setState({
+        isAdmin: isAdmin,
+        portalView: isAdmin ? 'admin' : 'evaluator',
+      });
+      localStorage.setItem('preferredPortal', isAdmin ? 'admin' : 'evaluator');
 
       // Get newsDetection start and end values
       const start = await this.state.newsDetectionInstance.methods
@@ -122,15 +129,53 @@ export default class Home extends Component {
   };
 
   // end newsDetection
+  openAlert = (title, message, type = 'info') => {
+    this.setState({
+      confirmModal: {
+        isOpen: true,
+        type: type,
+        title: title,
+        message: message,
+        confirmText: 'Dismiss',
+        isProcessing: false,
+        onClose: () => this.setState({ confirmModal: null }),
+        onConfirm: () => this.setState({ confirmModal: null }),
+      },
+    });
+  };
+
+  promptEndRound = () => {
+    this.setState({
+      confirmModal: {
+        isOpen: true,
+        type: 'danger',
+        title: 'Conclude Evaluation Round?',
+        message: 'Are you sure you want to officially end this round? Evaluators will no longer be able to submit votes, and the results will be locked for final NLP synthesis.',
+        confirmText: 'Yes, End Round',
+        cancelText: 'Cancel',
+        isProcessing: false,
+        onClose: () => this.setState({ confirmModal: null }),
+        onConfirm: this.endnewsDetection,
+      },
+    });
+  };
+
   endnewsDetection = async () => {
+    this.setState((prev) => ({
+      confirmModal: prev.confirmModal
+        ? { ...prev.confirmModal, isProcessing: true, processingText: 'Ending session on MetaMask...' }
+        : null,
+    }));
     try {
       await this.state.newsDetectionInstance.methods
         .endnewsDetection()
         .send({ from: this.state.account, gas: 1000000 });
+      this.setState({ confirmModal: null });
       window.location.reload();
     } catch (err) {
       console.error(err);
-      alert('Failed to end evaluation session: ' + err.message);
+      this.setState({ confirmModal: null });
+      this.openAlert('Action Cancelled', err.message?.includes('User denied') ? 'Transaction was rejected in MetaMask.' : `Failed to end session: ${err.message}`, 'warning');
     }
   };
 
@@ -147,7 +192,7 @@ export default class Home extends Component {
       window.location.reload();
     } catch (err) {
       console.error(err);
-      alert('Failed to initialize session: ' + err.message);
+      this.openAlert('Setup Error', err.message?.includes('User denied') ? 'Transaction was rejected in MetaMask.' : `Failed to initialize session: ${err.message}`, 'warning');
     }
   };
 
@@ -239,6 +284,22 @@ export default class Home extends Component {
         ) : (
           this.renderEvaluatorPortal()
         )}
+
+        {/* Custom Confirmation / Alert Modal */}
+        {this.state.confirmModal && (
+          <ConfirmModal
+            isOpen={this.state.confirmModal.isOpen}
+            type={this.state.confirmModal.type}
+            title={this.state.confirmModal.title}
+            message={this.state.confirmModal.message}
+            confirmText={this.state.confirmModal.confirmText}
+            cancelText={this.state.confirmModal.cancelText}
+            isProcessing={this.state.confirmModal.isProcessing}
+            processingText={this.state.confirmModal.processingText}
+            onClose={this.state.confirmModal.onClose || (() => this.setState({ confirmModal: null }))}
+            onConfirm={this.state.confirmModal.onConfirm}
+          />
+        )}
       </div>
     );
   }
@@ -289,7 +350,7 @@ export default class Home extends Component {
 
               {this.state.elStarted && !this.state.elEnded && (
                 <button
-                  onClick={this.endnewsDetection}
+                  onClick={this.promptEndRound}
                   className="bg-rose-600 hover:bg-rose-500 text-white font-semibold py-2.5 px-5 rounded-lg text-sm flex items-center gap-2 shadow-lg transition-colors cursor-pointer"
                 >
                   <StopIcon className="h-5 w-5" />

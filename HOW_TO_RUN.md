@@ -200,37 +200,25 @@ Follow this sequence to test the entire decentralized verification cycle:
 
 ---
 
-## 🧠 Running the NLP Component (Optional)
+## 🧠 Running the NLP Component & Continuous Learning Microservice
 
-The `/NLP` folder contains continuous learning and BERT models for automated news text classification:
+The system features an automated Python REST microservice (`nlp_server.py`) that bridges the NLP classification and continuous learning models directly to the React DApp:
 
-1. Open a new terminal in the project root:
+1. In the project root, start the NLP microservice:
    ```bash
-   cd NLP
+   python nlp_server.py
    ```
+   *(Or select Option [5] from `run.bat`)*
 
-2. Create and activate a Python virtual environment:
-   ```bash
-   python -m venv venv
-   # Windows:
-   .\venv\Scripts\activate
-   # Linux / macOS:
-   source venv/bin/activate
-   ```
+2. The server will start on `http://127.0.0.1:5000`:
+   - `POST /api/predict`: Real-time news text analysis returning Fake/Authentic classification, confidence %, extracted keywords, and credibility signals.
+   - `POST /api/feedback`: Continuous learning endpoint that incrementally updates the model using verified consensus from the blockchain.
+   - `GET /api/health`: Health status and total continuous samples assimilated.
 
-3. Install requirements:
-   ```bash
-   pip install jupyter tensorflow transformers pandas scikit-learn
-   ```
-
-4. Launch Jupyter Notebook:
-   ```bash
-   jupyter notebook
-   ```
-
-5. Open and execute:
-   - `classifying_fake_news_with_bert.ipynb` — Trains and evaluates BERT for fake news detection.
-   - `English(Web_APP)Fake_Detection_Web_APP.ipynb` — NLP inference pipeline for web app synthesis.
+3. **Offline Jupyter Notebooks (`/NLP`)**:
+   For training experiments or custom BERT runs:
+   - `classifying_fake_news_with_bert.ipynb` — PyTorch/Transformers BERT fake news training.
+   - `English_Fake_News_Detection.ipynb` — Keras/TensorFlow pipeline.
 
 ---
 

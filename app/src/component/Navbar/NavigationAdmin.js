@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useHistory } from 'react-router-dom';
 
 import {
   ChartBarIcon,
@@ -28,6 +28,7 @@ const NavigationAdmin = () => {
   const [showEvaluatorLinks, setShowEvaluatorLinks] = useState(true);
 
   const location = useLocation();
+  const history = useHistory();
 
   // Detect MetaMask Account and Contract Admin
   useEffect(() => {
@@ -48,9 +49,16 @@ const NavigationAdmin = () => {
             const adminAddr = await instance.methods.getAdmin().call();
             const isAdmin = accounts[0].toLowerCase() === adminAddr.toLowerCase();
             setIsContractAdmin(isAdmin);
-            // If user hasn't explicitly chosen, set based on connected account
-            if (!localStorage.getItem('preferredPortal')) {
-              setActiveTab(isAdmin ? 'admin' : 'evaluator');
+
+            // Automatically sync the active portal tab to the connected wallet's actual role
+            const targetPortal = isAdmin ? 'admin' : 'evaluator';
+            setActiveTab(targetPortal);
+            localStorage.setItem('preferredPortal', targetPortal);
+
+            // Auto-redirect if page access conflicts with active MetaMask role:
+            // If connected as Evaluator on Admin-only routes, automatically navigate to Evaluator Home
+            if (!isAdmin && (location.pathname === '/AddNews' || location.pathname === '/Verification')) {
+              history.push('/');
             }
           }
         }
@@ -73,13 +81,28 @@ const NavigationAdmin = () => {
       isMounted = false;
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   const handlePortalSwitch = (portal) => {
     setActiveTab(portal);
     localStorage.setItem('preferredPortal', portal);
     // Broadcast event for Home page synchronization
     window.dispatchEvent(new Event('portalChanged'));
+  };
+
+  const handleSwitchMetaMaskAccount = async () => {
+    try {
+      if (window.ethereum) {
+        await window.ethereum.request({
+          method: 'wallet_requestPermissions',
+          params: [{ eth_accounts: {} }],
+        });
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Account switch failed:', err);
+    }
   };
 
   const handleNavClick = () => {
@@ -297,12 +320,22 @@ const NavigationAdmin = () => {
               {isContractAdmin ? 'Admin Account' : 'Evaluator Account'}
             </span>
           </div>
-          <div className="text-[11px] font-mono text-slate-300 truncate">
-            {activeAccount
-              ? `${activeAccount.substring(0, 8)}...${activeAccount.substring(
-                  activeAccount.length - 6
-                )}`
-              : 'Connecting...'}
+          <div className="flex items-center justify-between gap-1">
+            <div className="text-[11px] font-mono text-slate-300 truncate">
+              {activeAccount
+                ? `${activeAccount.substring(0, 8)}...${activeAccount.substring(
+                    activeAccount.length - 6
+                  )}`
+                : 'Connecting...'}
+            </div>
+            <button
+              type="button"
+              onClick={handleSwitchMetaMaskAccount}
+              title="Switch active account in MetaMask"
+              className="text-[10px] bg-slate-800 hover:bg-sky-600 text-slate-300 hover:text-white px-2 py-0.5 rounded border border-slate-700 transition-colors whitespace-nowrap"
+            >
+              Switch
+            </button>
           </div>
         </div>
       </aside>

@@ -108,6 +108,14 @@ contract newsDetection {
         return evaluatorCount;
     }
 
+    // Tracking per-article evaluator votes: newsId => evaluatorAddress => bool
+    mapping(uint256 => mapping(address => bool)) public hasEvaluatedNews;
+
+    // Helper view function to check if evaluator has voted on a specific news item
+    function hasEvaluatorVoted(uint256 newsId, address evaluator) public view returns (bool) {
+        return hasEvaluatedNews[newsId][evaluator];
+    }
+
     // Modeling a evaluator
     struct Evaluator {
         address evaluatorAddress;
@@ -149,15 +157,16 @@ contract newsDetection {
 
     // Vote
     function vote(uint256 newsId, bool isFake) public {
-        require(evaluatorDetails[msg.sender].hasVoted == false);
-        require(evaluatorDetails[msg.sender].isVerified == true);
-        require(start == true);
-        require(end == false);
-				if(isFake) {
-					newsDetails[newsId].fakeCount += 1;
-				} else {
-					newsDetails[newsId].voteCount += 1;
-				}
+        require(hasEvaluatedNews[newsId][msg.sender] == false, "Evaluator has already evaluated this news");
+        require(evaluatorDetails[msg.sender].isVerified == true, "Evaluator not verified");
+        require(start == true, "Evaluation session not active");
+        require(end == false, "Evaluation session ended");
+        if(isFake) {
+            newsDetails[newsId].fakeCount += 1;
+        } else {
+            newsDetails[newsId].voteCount += 1;
+        }
+        hasEvaluatedNews[newsId][msg.sender] = true;
         evaluatorDetails[msg.sender].hasVoted = true;
     }
 
