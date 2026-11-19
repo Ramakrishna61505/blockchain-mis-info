@@ -1,0 +1,26 @@
+.div-li {
+  display: block;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+.input-r {
+  width: 100%;
+  margin: 0.5em 0;
+  padding: 0.8em;
+  display: block;
+  box-sizing: border-box;
+}
+.label-r {
+  display: block;
+  width: 100%;
+  font-weight: 500;
+}
+.btn-add {
+  padding: 0.8em 1.5em;
+  margin: 1em 0;
+}
+.note {
+  width: 100%;
+  padding: 10px 0;
+  line-height: 1.5em;
+}
