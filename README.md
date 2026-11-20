@@ -13,7 +13,7 @@
 > **Academic Foundation**: Based on the research paper published in **IEEE Access**:  
 > *"Toward News Authenticity: Synthesizing Natural Language Processing and Human Expert Opinion to Evaluate News"*  
 > **DOI:** [10.1109/ACCESS.2023.3241483](https://doi.org/10.1109/ACCESS.2023.3241483)  
-> **Repository:** [https://github.com/Ramakrishna61505/framework-for-mis-info.git](https://github.com/Ramakrishna61505/framework-for-mis-info.git)
+> **Repository:** [https://github.com/Ramakrishna61505/blockchain-mis-info.git](https://github.com/Ramakrishna61505/blockchain-mis-info.git)
 
 ---
 
@@ -246,8 +246,8 @@ For Windows users, an interactive batch launcher is provided at the root of the 
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/Ramakrishna61505/framework-for-mis-info.git
-cd framework-for-mis-info
+git clone https://github.com/Ramakrishna61505/blockchain-mis-info.git
+cd blockchain-mis-info
 ```
 
 ### 2. Start the Local Ganache Blockchain
