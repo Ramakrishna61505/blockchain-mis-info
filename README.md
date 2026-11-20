@@ -20,17 +20,14 @@
 1. [Executive Summary & Problem Statement](#-executive-summary--problem-statement)
 2. [System Architecture](#-system-architecture)
 3. [Key Innovations & Features](#-key-innovations--features)
-4. [Mathematical Synthesis Formulation](#-mathematical-synthesis-formulation)
-5. [Directory Structure](#-directory-structure)
-6. [Prerequisites & System Requirements](#-prerequisites--system-requirements)
-7. [Quick Start (One-Click Launcher)](#-quick-start-one-click-launcher)
-8. [Manual Step-by-Step Installation & Execution](#-manual-step-by-step-installation--execution)
-9. [MetaMask Wallet & Localhost Configuration](#-metamask-wallet--localhost-configuration)
-10. [End-to-End System Evaluation Walkthrough](#-end-to-end-system-evaluation-walkthrough)
-11. [Microservice REST API Reference (`nlp_server.py`)](#-microservice-rest-api-reference-nlp_serverpy)
-12. [Smart Contract Specification (`newsDetection.sol`)](#-smart-contract-specification-newsdetectionsol)
-13. [Troubleshooting & FAQs](#-troubleshooting--faqs)
-14. [License & Acknowledgments](#-license--acknowledgments)
+4. [Directory Structure](#-directory-structure)
+5. [Prerequisites & System Requirements](#-prerequisites--system-requirements)
+6. [Quick Start (One-Click Launcher)](#-quick-start-one-click-launcher)
+7. [Manual Step-by-Step Installation & Execution](#-manual-step-by-step-installation--execution)
+8. [MetaMask Wallet & Localhost Configuration](#-metamask-wallet--localhost-configuration)
+9. [Smart Contract Specification (`newsDetection.sol`)](#-smart-contract-specification-newsdetectionsol)
+10. [Troubleshooting & FAQs](#-troubleshooting--faqs)
+11. [Project Information & Author](#-project-information--author)
 
 ---
 
@@ -127,29 +124,6 @@ flowchart TD
 ### 6. Closed-Loop Continuous NLP Learning
 - Final consensus outcomes reached by crowd evaluators can be streamed directly into the Python NLP microservice with a single click (**"🔄 Feed Consensus into Continuous NLP"**).
 - The model executes an online gradient update (`partial_fit`) on `SGDClassifier`, learning newly verified terminology and persisting updates to `continuous_learning_data.json`.
-
----
-
-## 📐 Mathematical Synthesis Formulation
-
-The final authenticity score synthesizing decentralized human crowd consensus and algorithmic natural language processing is defined by our hybrid mathematical formulation:
-
-$$Score_{Final} = \Big( w_{human} \cdot Consensus_{human} \Big) + \Big( w_{ai} \cdot Confidence_{ai} \Big)$$
-
-Where:
-- $w_{human} = 0.5$ (Human Crowd Consensus Weight)
-- $w_{ai} = 0.5$ (AI Classification Weight)
-
-### Human Consensus Calculation:
-Let $V_{auth}$ be the number of authentic votes and $V_{fake}$ be the number of fake votes recorded on the smart contract for news item $k$:
-
-$$Consensus_{human} = \begin{cases} \left( \frac{V_{auth}}{V_{auth} + V_{fake}} \right) \times 100, & \text{if } (V_{auth} + V_{fake}) > 0 \\ 50.0\%, & \text{otherwise (neutral baseline)} \end{cases}$$
-
-### Continuous Learning AI Confidence:
-$$Confidence_{ai} = \begin{cases} P(\text{Authentic}) \times 100, & \text{if Model classifies as Authentic} \\ 100 - (P(\text{Fake}) \times 100), & \text{if Model classifies as Fake} \end{cases}$$
-
-### Decision Threshold:
-$$\text{Final Authenticity Verdict} = \begin{cases} \textbf{AUTHENTIC / REAL}, & \text{if } Score_{Final} \ge 50.0\% \\ \textbf{MISINFORMATION / FAKE}, & \text{if } Score_{Final} < 50.0\% \end{cases}$$
 
 ---
 
@@ -309,136 +283,6 @@ npm start
    - In MetaMask -> Profile Icon -> **Import Account** -> Paste Private Key.
    - Label Account 0 as **`Admin Acc`** (has ~1,000 ETH).
    - Label Account 1 as **`Evaluator Acc`** (has ~1,000 ETH).
-
----
-
-## 🔄 End-to-End System Evaluation Walkthrough
-
-Follow this step-by-step lifecycle to execute a complete verification round:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Admin as Admin (0x6053...)
-    actor Eval as Evaluator (0x26D4...)
-    participant DApp as React DApp (localhost:3000)
-    participant SC as Smart Contract (Ganache)
-    participant NLP as Python NLP Service (Port 5000)
-
-    Note over Admin,SC: Phase 1: Round Initialization & News Publishing
-    Admin->>DApp: Select "Admin Acc" in MetaMask & Open Home (/)
-    Admin->>SC: Submit Session Title & Click "Start Session" (setnewsDetectionDetails)
-    Admin->>DApp: Navigate to /AddNews
-    Admin->>NLP: Input Web URL or Upload PDF/Word Document
-    NLP-->>DApp: Return Extracted Headline, Body Text, and Media Images
-    Admin->>DApp: Review Pre-Signing Modal & AI Credibility %
-    Admin->>SC: Click "Confirm & Sign" (addNews JSON Payload)
-
-    Note over Eval,SC: Phase 2: Registration & Authentication
-    Eval->>DApp: Switch MetaMask to "Evaluator Acc" & Open /Registration
-    Eval->>SC: Fill Name, Profession, ID & Click "Register Profile"
-    Admin->>DApp: Switch MetaMask to "Admin Acc" & Open /Verification
-    Admin->>SC: Click "Verify" next to the Evaluator (verifyEvaluator)
-
-    Note over Eval,SC: Phase 3: Per-Article Evaluation
-    Eval->>DApp: Switch MetaMask to "Evaluator Acc" & Open /Voting
-    Eval->>DApp: Click "📖 Read Full Article / Document Content" (Preview Modal)
-    Eval->>DApp: Click "✓ Verify as Authentic" or "⚠ Flag as Fake"
-    DApp->>Eval: Display Custom Glassmorphic ConfirmModal
-    Eval->>SC: Sign MetaMask Tx (vote newsId, isFake)
-    SC-->>DApp: Vote Recorded (News marked "✓ Evaluated by You")
-    Eval->>DApp: Evaluator votes on remaining articles independently
-
-    Note over Admin,NLP: Phase 4: Round Conclusion & NLP Feedback
-    Admin->>DApp: Switch MetaMask to "Admin Acc" & Open Home (/)
-    Admin->>SC: Click "End Round" (endnewsDetection)
-    Admin->>DApp: Navigate to /Final_Outcomes
-    DApp->>SC: Read total authentic and fake votes per news
-    DApp->>NLP: Request Real-Time Confidence Inference
-    DApp->>DApp: Compute 50% Human + 50% AI Synthesis Equation
-    Admin->>NLP: Click "🔄 Feed Consensus into Continuous NLP"
-    NLP->>NLP: Execute incremental partial_fit update on SGD model
-```
-
----
-
-## 🔌 Microservice REST API Reference (`nlp_server.py`)
-
-The Python Flask microservice runs on `http://127.0.0.1:5000` and exposes the following endpoints:
-
-### 1. `POST /api/predict`
-Evaluates text and returns classification verdicts and confidence metrics.
-- **Payload**:
-  ```json
-  { "text": "World Health Organization announces breakthrough in vaccine delivery." }
-  ```
-- **Response**:
-  ```json
-  {
-    "prediction": "REAL",
-    "real_percentage": 94.2,
-    "fake_percentage": 5.8,
-    "confidence": 94.2,
-    "keywords": ["health", "organization", "vaccine", "breakthrough"],
-    "credibility_flags": ["Official institutional wording detected"]
-  }
-  ```
-
-### 2. `POST /api/extract-url`
-Fetches a web page, parses metadata, body text, and OpenGraph featured imagery.
-- **Payload**:
-  ```json
-  { "url": "https://www.bbc.com/news/technology-681923" }
-  ```
-- **Response**:
-  ```json
-  {
-    "status": "success",
-    "headline": "Tech Giants Unveil New AI Safety Protocol",
-    "description": "Leading research labs announce cooperative benchmarking standards.",
-    "body": "Full body text extracted from page paragraphs...",
-    "image": "https://ichef.bbci.co.uk/news/1024/branded_news/...",
-    "source": "bbc.com",
-    "ai_analysis": { "prediction": "REAL", "real_percentage": 88.5 }
-  }
-  ```
-
-### 3. `POST /api/extract-file`
-Parses `.pdf`, `.docx`, and `.txt` files via `multipart/form-data`. Extracts raw text and saves embedded document illustrations to `/app/public/uploads/`.
-- **Payload**: Form data with `file: <document.pdf>`
-- **Response**:
-  ```json
-  {
-    "status": "success",
-    "headline": "Quarterly Financial Analysis Report",
-    "body": "Detailed text content extracted from document pages...",
-    "image": "/uploads/doc_img_1795101234_p1.png",
-    "filename": "report.pdf",
-    "ai_analysis": { "prediction": "REAL", "real_percentage": 91.0 }
-  }
-  ```
-
-### 4. `POST /api/feedback`
-Applies an incremental continuous learning step (`partial_fit`) to the underlying ML model using human consensus ground truth.
-- **Payload**:
-  ```json
-  {
-    "text": "Confirmed genuine press release text...",
-    "label": 1
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "status": "success",
-    "message": "Continuous learning feedback applied to classifier",
-    "sample_count": 42
-  }
-  ```
-
-### 5. `GET /api/health`
-Health monitor verifying microservice status and model readiness.
-- **Response**: `{"status": "online", "model": "TFIDF+SGDClassifier (BERT Available)", "samples_learned": 42}`
 
 ---
 
