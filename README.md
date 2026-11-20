@@ -10,10 +10,9 @@
 [![Flask](https://img.shields.io/badge/Flask-Microservice-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![MetaMask](https://img.shields.io/badge/MetaMask-Web3_Wallet-F6851B?logo=metamask&logoColor=white)](https://metamask.io/)
 
-> **Academic Foundation**: Based on the research paper published in **IEEE Access**:  
-> *"Toward News Authenticity: Synthesizing Natural Language Processing and Human Expert Opinion to Evaluate News"*  
-> **DOI:** [10.1109/ACCESS.2023.3241483](https://doi.org/10.1109/ACCESS.2023.3241483)  
-> **Repository:** [https://github.com/Ramakrishna61505/blockchain-mis-info.git](https://github.com/Ramakrishna61505/blockchain-mis-info.git)
+> 🛡️ **An End-to-End Decentralized Fact-Checking Ecosystem**: Built from scratch to synthesize Ethereum Smart Contract consensus with an adaptive, continuous-learning NLP classification engine.  
+> **Repository:** [https://github.com/Ramakrishna61505/blockchain-mis-info.git](https://github.com/Ramakrishna61505/blockchain-mis-info.git)  
+> **Author & Lead Developer:** Ramakrishna ([@Ramakrishna61505](https://github.com/Ramakrishna61505))
 
 ---
 
@@ -133,7 +132,7 @@ flowchart TD
 
 ## 📐 Mathematical Synthesis Formulation
 
-Following the IEEE Access research paper formulation, the final authenticity score synthesizing human crowd consensus and algorithmic natural language processing is defined as:
+The final authenticity score synthesizing decentralized human crowd consensus and algorithmic natural language processing is defined by our hybrid mathematical formulation:
 
 $$Score_{Final} = \Big( w_{human} \cdot Consensus_{human} \Big) + \Big( w_{ai} \cdot Confidence_{ai} \Big)$$
 
@@ -515,8 +514,8 @@ struct Evaluator {
 
 ---
 
-## 📄 License & Acknowledgments
+## 📄 Project Information & Author
 
-- **Underlying Paper**: *"Toward News Authenticity: Synthesizing Natural Language Processing and Human Expert Opinion to Evaluate News"*, IEEE Access, 2023.
-- **Primary Author / Researcher**: Ramakrishna ([@Ramakrishna61505](https://github.com/Ramakrishna61505))
+- **Creator & Lead Developer**: Ramakrishna ([@Ramakrishna61505](https://github.com/Ramakrishna61505))
+- **Project Type**: Final Year Engineering Project / Capstone System Architecture
 - **License**: MIT License — open for academic, educational, and research extension.

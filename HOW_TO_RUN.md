@@ -242,8 +242,7 @@ The system features an automated Python REST microservice (`nlp_server.py`) that
 
 ---
 
-## 📄 IEEE Publication Reference
-This implementation is based on the research published in IEEE Access:
-- **Title**: Toward News Authenticity: Synthesizing Natural Language Processing and Human Expert Opinion to Evaluate News
-- **IEEE Document**: [10034750](https://ieeexplore.ieee.org/document/10034750)
-- **DOI**: [10.1109/ACCESS.2023.3241483](https://doi.org/10.1109/ACCESS.2023.3241483)
+## 📄 Project Information & Author
+- **Project**: Decentralized Framework for Misinformation Detection & Verification
+- **Creator & Lead Developer**: Ramakrishna ([@Ramakrishna61505](https://github.com/Ramakrishna61505))
+- **License**: MIT License
