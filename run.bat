@@ -48,6 +48,8 @@ if "%choice%"=="2" (
     echo Compiling and migrating smart contracts...
     set "APPDATA=%CD%\.truffle_data"
     call truffle compile && call truffle migrate --reset
+    node -e "const fs = require('fs'); ['./app/src/contracts/newsDetection.json', './app/src/contracts/Migrations.json'].forEach(f => { const d = JSON.parse(fs.readFileSync(f)); if (d.networks && d.networks['5777']) { d.networks['1337'] = d.networks['5777']; fs.writeFileSync(f, JSON.stringify(d, null, 2)); } });"
+    echo Contracts deployed successfully with dual chain ID support (5777 / 1337).
     pause
     goto end
 )
