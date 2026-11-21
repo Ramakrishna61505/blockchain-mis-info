@@ -272,6 +272,32 @@ export default class Voting extends Component {
     }
   };
 
+  getReputationTier = (profession, evaluatedCount) => {
+    const prof = (profession || '').toLowerCase();
+    if (/fact-check|journalist|editor|professor|researcher|phd|investigat|news|reporter/i.test(prof)) {
+      return {
+        title: 'Senior Fact-Checker',
+        stars: '⭐⭐⭐',
+        weight: '1.5x',
+        badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+      };
+    }
+    if (evaluatedCount >= 3 || /analyst|engineer|lawyer|doctor|academic|scientist/i.test(prof)) {
+      return {
+        title: 'Domain Specialist',
+        stars: '⭐⭐',
+        weight: '1.2x',
+        badgeClass: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+      };
+    }
+    return {
+      title: 'Community Evaluator',
+      stars: '⭐',
+      weight: '1.0x',
+      badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+    };
+  };
+
   renderStatusBanner = () => {
     const { isElStarted, isElEnded, currentEvaluator, isAdmin, newss, votedNewsMap } = this.state;
     const evaluatedCount = Object.keys(votedNewsMap).filter((k) => votedNewsMap[k]).length;
@@ -347,6 +373,7 @@ export default class Voting extends Component {
 
       // Evaluator is registered and verified
       const allDone = totalCount > 0 && evaluatedCount >= totalCount;
+      const rep = this.getReputationTier(currentEvaluator.profession, evaluatedCount);
 
       return (
         <div className="bg-emerald-500/10 border border-emerald-500/30 p-5 rounded-2xl text-emerald-300 text-xs shadow-lg space-y-3 animate-fade-in">
@@ -356,11 +383,16 @@ export default class Voting extends Component {
                 <CheckCircleIcon className="h-5 w-5 text-emerald-400" />
                 Verified Evaluator: {currentEvaluator.name} ({currentEvaluator.profession})
               </span>
-              <p className="text-slate-300 text-xs mt-0.5">
-                {allDone
-                  ? "You have evaluated all published articles in this round! Thank you for participating."
-                  : `You can evaluate each published article individually. Cast your vote on each card below.`}
-              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${rep.badgeClass}`}>
+                  {rep.title} {rep.stars} ({rep.weight} Weight)
+                </span>
+                <span className="text-slate-300 text-xs">
+                  {allDone
+                    ? "You have evaluated all published articles in this round! Thank you for participating."
+                    : `You can evaluate each published article individually. Cast your vote on each card below.`}
+                </span>
+              </div>
             </div>
             <span className="text-xs font-mono font-semibold px-3 py-1.5 rounded-xl bg-slate-900 border border-emerald-500/30 text-emerald-300 whitespace-nowrap">
               Evaluated: {evaluatedCount} / {totalCount} Articles
@@ -498,54 +530,65 @@ export default class Voting extends Component {
               <span>You have evaluated this article. Your vote is recorded on the blockchain.</span>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <button
-                type="button"
-                onClick={() => this.confirmVote(id, headline, false)}
-                disabled={!canVote || isVoting}
-                className="w-full sm:flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700/50 disabled:text-slate-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:cursor-not-allowed hover:shadow-emerald-900/40"
-              >
-                {isVoting ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    <span>Signing...</span>
-                  </>
-                ) : canVote ? (
-                  <>
-                    <ShieldCheckIcon className="h-4 w-4" />
-                    <span>✓ Verify as Authentic</span>
-                  </>
-                ) : (
-                  buttonLabelDisabled
-                )}
-              </button>
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => this.confirmVote(id, headline, false)}
+                  disabled={!canVote || isVoting}
+                  className="w-full sm:flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700/50 disabled:text-slate-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:cursor-not-allowed hover:shadow-emerald-900/40"
+                >
+                  {isVoting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      <span>Signing...</span>
+                    </>
+                  ) : canVote ? (
+                    <>
+                      <ShieldCheckIcon className="h-4 w-4" />
+                      <span>✓ Verify as Authentic</span>
+                    </>
+                  ) : (
+                    buttonLabelDisabled
+                  )}
+                </button>
 
-              <button
-                type="button"
-                onClick={() => this.confirmVote(id, headline, true)}
-                disabled={!canVote || isVoting}
-                className="w-full sm:flex-1 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-700/50 disabled:text-slate-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:cursor-not-allowed hover:shadow-rose-900/40"
-              >
-                {isVoting ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    <span>Signing...</span>
-                  </>
-                ) : canVote ? (
-                  <>
-                    <ExclamationIcon className="h-4 w-4" />
-                    <span>⚠ Flag as Fake</span>
-                  </>
-                ) : (
-                  buttonLabelDisabled
-                )}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => this.confirmVote(id, headline, true)}
+                  disabled={!canVote || isVoting}
+                  className="w-full sm:flex-1 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-700/50 disabled:text-slate-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:cursor-not-allowed hover:shadow-rose-900/40"
+                >
+                  {isVoting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      <span>Signing...</span>
+                    </>
+                  ) : canVote ? (
+                    <>
+                      <ExclamationIcon className="h-4 w-4" />
+                      <span>⚠ Flag as Fake</span>
+                    </>
+                  ) : (
+                    buttonLabelDisabled
+                  )}
+                </button>
+              </div>
+
+              {canVote && (
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
+                  <span>Reputation Consensus Weight:</span>
+                  <span className="font-semibold text-amber-300">
+                    {this.getReputationTier(currentEvaluator.profession, Object.keys(votedNewsMap).length).title} ({this.getReputationTier(currentEvaluator.profession, Object.keys(votedNewsMap).length).weight})
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
