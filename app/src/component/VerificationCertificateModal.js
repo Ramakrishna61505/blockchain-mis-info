@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import {
   ShieldCheckIcon,
+  ExclamationIcon,
   PrinterIcon,
   DuplicateIcon,
   CheckIcon,

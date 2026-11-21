@@ -67,10 +67,8 @@ export default class Registration extends Component {
       });
 
       // Admin account and verification
-      const admin = await this.state.newsDetectionInstance.methods
-        .getAdmin()
-        .call();
-      if (this.state.account === admin) {
+      const admin = await instance.methods.getAdmin().call();
+      if (accounts[0] && admin && accounts[0].toLowerCase() === admin.toLowerCase()) {
         this.setState({ isAdmin: true });
       }
 
@@ -235,17 +233,19 @@ export default class Registration extends Component {
     }
   };
   render() {
+    const isPortalAdmin = sessionStorage.getItem('portalRole') === 'admin';
+
     if (!this.state.web3) {
       return (
         <>
-          {this.state.isAdmin ? <NavbarAdmin /> : <Navbar />}
+          {isPortalAdmin ? <NavbarAdmin /> : <Navbar />}
           <center>Loading Web3, accounts, and contract...</center>
         </>
       );
     }
     return (
       <div className="md:ml-64 pt-16 md:pt-6 px-4 pb-12 min-h-screen">
-        {this.state.isAdmin ? <NavbarAdmin /> : <Navbar />}
+        {isPortalAdmin ? <NavbarAdmin /> : <Navbar />}
         <div className="w-full max-w-4xl mx-auto space-y-6">
           {this.state.isAdmin && (
             <div className="bg-emerald-950/50 border border-emerald-600/60 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">

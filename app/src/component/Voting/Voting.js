@@ -597,10 +597,12 @@ export default class Voting extends Component {
   };
 
   render() {
+    const isPortalAdmin = sessionStorage.getItem('portalRole') === 'admin';
+
     if (!this.state.web3) {
       return (
         <>
-          {this.state.isAdmin ? <NavbarAdmin /> : <Navbar />}
+          {isPortalAdmin ? <NavbarAdmin /> : <Navbar />}
           <div className="flex items-center justify-center min-h-[60vh] text-slate-300">
             <div className="flex items-center gap-3">
               <svg className="animate-spin h-5 w-5 text-sky-400" fill="none" viewBox="0 0 24 24">
@@ -618,7 +620,7 @@ export default class Voting extends Component {
 
     return (
       <div className="md:ml-64 pt-16 md:pt-6 px-4 pb-12 min-h-screen">
-        {this.state.isAdmin ? <NavbarAdmin /> : <Navbar />}
+        {isPortalAdmin ? <NavbarAdmin /> : <Navbar />}
 
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}

@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { BrowserRouter as Router, Switch, Route, Link } from 'react-router-dom';
 
 import Home from './component/Home';
+import PortalLogin from './component/Auth/PortalLogin';
 
 import Voting from './component/Voting/Voting';
 import Outcomes from './component/Outcomes/Outcomes';
@@ -11,9 +12,6 @@ import Registration from './component/Registration/Registration';
 import AddNews from './component/Admin/AddNews/AddNews';
 import Verification from './component/Admin/Verification/Verification';
 import test from './component/test';
-// import StartEnd from "./component/Admin/StartEnd/StartEnd";
-
-//import Footer from "./component/Footer/Footer         <Footer />";
 
 import './App.css';
 
@@ -24,6 +22,7 @@ export default class App extends Component {
         <Router>
           <Switch>
             <Route exact path="/" component={Home} />
+            <Route exact path="/Login" component={PortalLogin} />
             <Route exact path="/AddNews" component={AddNews} />
             <Route exact path="/Voting" component={Voting} />
             <Route exact path="/Outcomes" component={Outcomes} />
@@ -38,25 +37,22 @@ export default class App extends Component {
     );
   }
 }
+
 class NotFound extends Component {
   render() {
     return (
-      <>
-        <h1>404 NOT FOUND!</h1>
-        <center>
-          <p>
-            The page your are looking for doesn't exist.
-            <br />
-            Go to{' '}
-            <Link
-              to="/"
-              style={{ color: 'black', textDecoration: 'underline' }}
-            >
-              Home
-            </Link>
-          </p>
-        </center>
-      </>
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 space-y-4">
+        <h1 className="text-4xl font-extrabold text-rose-400">404 NOT FOUND</h1>
+        <p className="text-slate-400 text-sm">
+          The page you are looking for does not exist.
+        </p>
+        <Link
+          to="/"
+          className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-6 rounded-xl transition-colors text-xs"
+        >
+          Return to FactVerify Gateway &rarr;
+        </Link>
+      </div>
     );
   }
 }

@@ -100,10 +100,12 @@ export default class Result extends Component {
   };
 
   render() {
+    const isPortalAdmin = sessionStorage.getItem('portalRole') === 'admin';
+
     if (!this.state.web3) {
       return (
         <>
-          {this.state.isAdmin ? <NavbarAdmin /> : <Navbar />}
+          {isPortalAdmin ? <NavbarAdmin /> : <Navbar />}
           <center>Loading Web3, accounts, and contract...</center>
         </>
       );
@@ -111,7 +113,7 @@ export default class Result extends Component {
 
     return (
       <div className="md:ml-64 pt-16 md:pt-6 px-4 pb-12 min-h-screen">
-        {this.state.isAdmin ? <NavbarAdmin /> : <Navbar />}
+        {isPortalAdmin ? <NavbarAdmin /> : <Navbar />}
         <br />
         <div>
           {!this.state.isElStarted && !this.state.isElEnded ? (

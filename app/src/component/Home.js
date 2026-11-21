@@ -16,6 +16,7 @@ import Navbar from './Navbar/Navigation';
 import NavbarAdmin from './Navbar/NavigationAdmin';
 import UserHome from './UserHome';
 import ConfirmModal from './ConfirmModal';
+import PortalLogin from './Auth/PortalLogin';
 
 // Contract
 import getWeb3 from '../getWeb3';
@@ -35,66 +36,95 @@ export default class Home extends Component {
       elStarted: false,
       elEnded: false,
       elDetails: {},
-      portalView: localStorage.getItem('preferredPortal') || 'auto',
+      portalRole: sessionStorage.getItem('portalRole') || null,
       confirmModal: null,
     };
   }
 
   componentDidMount = async () => {
-    window.addEventListener('portalChanged', this.handleExternalPortalChange);
+    window.addEventListener('metamaskAccountChanged', this.handleAccountChange);
+
+    if (window.ethereum) {
+      this.accountsHandler = (accounts) => {
+        this.initBlockchain(accounts);
+      };
+      window.ethereum.on('accountsChanged', this.accountsHandler);
+    }
+
+    await this.initBlockchain();
+  };
+
+  componentWillUnmount() {
+    window.removeEventListener('metamaskAccountChanged', this.handleAccountChange);
+    if (window.ethereum && this.accountsHandler) {
+      window.ethereum.removeListener('accountsChanged', this.accountsHandler);
+    }
+  }
+
+  handleAccountChange = () => {
+    this.initBlockchain();
+  };
+
+  initBlockchain = async (passedAccounts = null) => {
     try {
-      // Get network provider and web3 instance.
       const web3 = await getWeb3();
 
-      // Use web3 to get the user's accounts.
-      const accounts = await web3.eth.getAccounts();
+      let accounts = passedAccounts || (await web3.eth.getAccounts());
+      if ((!accounts || accounts.length === 0) && window.ethereum) {
+        try {
+          accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        } catch {
+          // ignore
+        }
+      }
 
-      // Get the contract instance.
+      const currentAccount =
+        (accounts && accounts[0]) ||
+        (window.ethereum && window.ethereum.selectedAddress) ||
+        null;
+
       const networkId = await web3.eth.net.getId();
-      const deployedNetwork = newsDetection.networks[networkId];
+      const deployedNetwork =
+        newsDetection.networks[networkId] ||
+        newsDetection.networks['1337'] ||
+        newsDetection.networks['5777'];
+
+      if (!deployedNetwork || !deployedNetwork.address) {
+        throw new Error(
+          `Contract not deployed on Network ID ${networkId}. Please migrate contracts to Ganache.`
+        );
+      }
+
       const instance = new web3.eth.Contract(
         newsDetection.abi,
-        deployedNetwork && deployedNetwork.address
+        deployedNetwork.address
+      );
+
+      const admin = await instance.methods.getAdmin().call();
+      const isAdmin = Boolean(
+        currentAccount &&
+          admin &&
+          currentAccount.toLowerCase() === admin.toLowerCase()
       );
 
       this.setState({
         web3: web3,
         newsDetectionInstance: instance,
-        account: accounts[0],
-      });
-
-      const admin = await this.state.newsDetectionInstance.methods
-        .getAdmin()
-        .call();
-      const isAdmin = Boolean(
-        this.state.account && admin && this.state.account.toLowerCase() === admin.toLowerCase()
-      );
-      this.setState({
+        account: currentAccount,
         isAdmin: isAdmin,
-        portalView: isAdmin ? 'admin' : 'evaluator',
       });
-      localStorage.setItem('preferredPortal', isAdmin ? 'admin' : 'evaluator');
 
       // Get newsDetection start and end values
-      const start = await this.state.newsDetectionInstance.methods
-        .getStart()
-        .call();
+      const start = await instance.methods.getStart().call();
       this.setState({ elStarted: start });
-      const end = await this.state.newsDetectionInstance.methods
-        .getEnd()
-        .call();
+
+      const end = await instance.methods.getEnd().call();
       this.setState({ elEnded: end });
 
       // Getting newsDetection details from the contract
-      const adminName = await this.state.newsDetectionInstance.methods
-        .getAdminName()
-        .call();
-      const adminEmail = await this.state.newsDetectionInstance.methods
-        .getAdminEmail()
-        .call();
-      const newsdetectionTitle = await this.state.newsDetectionInstance.methods
-        .getnewsDetectionTitle()
-        .call();
+      const adminName = await instance.methods.getAdminName().call();
+      const adminEmail = await instance.methods.getAdminEmail().call();
+      const newsdetectionTitle = await instance.methods.getnewsDetectionTitle().call();
 
       this.setState({
         elDetails: {
@@ -104,31 +134,25 @@ export default class Home extends Component {
         },
       });
     } catch (error) {
-      alert(
-        `Failed to load web3, accounts, or contract. Check console for details.`
-      );
-      console.error(error);
+      console.error('Home initialization error:', error);
     }
   };
 
-  componentWillUnmount() {
-    window.removeEventListener('portalChanged', this.handleExternalPortalChange);
-  }
-
-  handleExternalPortalChange = () => {
-    const saved = localStorage.getItem('preferredPortal');
-    if (saved) {
-      this.setState({ portalView: saved });
+  handleSwitchAccountPrompt = async () => {
+    if (window.ethereum) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_requestPermissions',
+          params: [{ eth_accounts: {} }],
+        });
+        await this.initBlockchain();
+      } catch (err) {
+        console.warn('User cancelled account switch:', err);
+      }
     }
   };
 
-  setPortalView = (view) => {
-    this.setState({ portalView: view });
-    localStorage.setItem('preferredPortal', view);
-    window.dispatchEvent(new Event('portalChanged'));
-  };
-
-  // end newsDetection
+  // Alert Modal
   openAlert = (title, message, type = 'info') => {
     this.setState({
       confirmModal: {
@@ -150,7 +174,8 @@ export default class Home extends Component {
         isOpen: true,
         type: 'danger',
         title: 'Conclude Evaluation Round?',
-        message: 'Are you sure you want to officially end this round? Evaluators will no longer be able to submit votes, and the results will be locked for final NLP synthesis.',
+        message:
+          'Are you sure you want to officially end this round? Evaluators will no longer be able to submit votes, and the results will be locked for final NLP synthesis.',
         confirmText: 'Yes, End Round',
         cancelText: 'Cancel',
         isProcessing: false,
@@ -163,7 +188,11 @@ export default class Home extends Component {
   endnewsDetection = async () => {
     this.setState((prev) => ({
       confirmModal: prev.confirmModal
-        ? { ...prev.confirmModal, isProcessing: true, processingText: 'Ending session on MetaMask...' }
+        ? {
+            ...prev.confirmModal,
+            isProcessing: true,
+            processingText: 'Ending session on MetaMask...',
+          }
         : null,
     }));
     try {
@@ -175,7 +204,13 @@ export default class Home extends Component {
     } catch (err) {
       console.error(err);
       this.setState({ confirmModal: null });
-      this.openAlert('Action Cancelled', err.message?.includes('User denied') ? 'Transaction was rejected in MetaMask.' : `Failed to end session: ${err.message}`, 'warning');
+      this.openAlert(
+        'Action Cancelled',
+        err.message?.includes('User denied')
+          ? 'Transaction was rejected in MetaMask.'
+          : `Failed to end session: ${err.message}`,
+        'warning'
+      );
     }
   };
 
@@ -192,11 +227,31 @@ export default class Home extends Component {
       window.location.reload();
     } catch (err) {
       console.error(err);
-      this.openAlert('Setup Error', err.message?.includes('User denied') ? 'Transaction was rejected in MetaMask.' : `Failed to initialize session: ${err.message}`, 'warning');
+      this.openAlert(
+        'Setup Error',
+        err.message?.includes('User denied')
+          ? 'Transaction was rejected in MetaMask.'
+          : `Failed to initialize session: ${err.message}`,
+        'warning'
+      );
     }
   };
 
   render() {
+    const portalRole = sessionStorage.getItem('portalRole') || this.state.portalRole;
+
+    // 1. Gateway Screen: If user has not selected and authenticated into a portal
+    if (!portalRole) {
+      return (
+        <PortalLogin
+          onLoginSuccess={(role) => {
+            this.setState({ portalRole: role });
+          }}
+        />
+      );
+    }
+
+    // 2. Loading state while Web3 initializes
     if (!this.state.web3) {
       return (
         <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
@@ -208,30 +263,25 @@ export default class Home extends Component {
       );
     }
 
-    const effectivePortal =
-      this.state.portalView === 'auto'
-        ? this.state.isAdmin
-          ? 'admin'
-          : 'evaluator'
-        : this.state.portalView;
+    const isAdminView = portalRole === 'admin';
 
     return (
       <div className="md:ml-64 pt-16 md:pt-6 px-4 pb-12 min-h-screen">
-        {this.state.isAdmin ? <NavbarAdmin /> : <Navbar />}
+        {isAdminView ? <NavbarAdmin /> : <Navbar />}
 
         <div className="w-full max-w-4xl mx-auto space-y-4 mb-6">
           {/* User Account & Role Banner */}
-          <div className="rounded-xl bg-slate-800/90 border border-slate-700 p-4 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="rounded-2xl bg-slate-800/90 border border-slate-700 p-4 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="overflow-hidden">
               <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold block mb-0.5">
                 Connected MetaMask Wallet
               </span>
               <p className="text-sm font-mono text-emerald-400 break-all font-semibold">
-                {this.state.account}
+                {this.state.account || 'Connecting wallet...'}
               </p>
             </div>
-            <div className="flex-shrink-0">
-              {this.state.isAdmin ? (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isAdminView ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-600">
                   <ShieldCheckIcon className="h-4 w-4" />
                   BLOCKCHAIN ADMIN
@@ -239,51 +289,22 @@ export default class Home extends Component {
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-950 text-sky-300 border border-sky-600">
                   <SearchIcon className="h-4 w-4" />
-                  EVALUATOR ACCOUNT
+                  EVALUATOR WORKSPACE
                 </span>
               )}
-            </div>
-          </div>
-
-          {/* Interactive Portal Switcher Bar */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-900 border border-slate-800 p-2.5 rounded-xl gap-2 shadow">
-            <div className="flex items-center gap-2 px-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-              <span>Current View:</span>
-              <span className={effectivePortal === 'admin' ? 'text-emerald-400 font-extrabold' : 'text-sky-400 font-extrabold'}>
-                {effectivePortal === 'admin' ? '🛡️ Admin Portal' : '🔍 Evaluator Portal'}
-              </span>
-            </div>
-            <div className="flex gap-2 w-full sm:w-auto">
               <button
-                onClick={() => this.setPortalView('admin')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  effectivePortal === 'admin'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                }`}
+                onClick={this.handleSwitchAccountPrompt}
+                type="button"
+                className="text-xs bg-slate-700 hover:bg-sky-600 text-white font-semibold py-1 px-3 rounded-lg border border-slate-600 transition-colors cursor-pointer shadow"
               >
-                <ShieldCheckIcon className="h-4 w-4" /> Admin Portal
-              </button>
-              <button
-                onClick={() => this.setPortalView('evaluator')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  effectivePortal === 'evaluator'
-                    ? 'bg-sky-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                }`}
-              >
-                <SearchIcon className="h-4 w-4" /> Evaluator Portal
+                Switch Wallet ⇄
               </button>
             </div>
           </div>
         </div>
 
-        {/* Dynamic Portal Content */}
-        {effectivePortal === 'admin' ? (
-          this.renderAdminPortal()
-        ) : (
-          this.renderEvaluatorPortal()
-        )}
+        {/* Dedicated Portal Content */}
+        {isAdminView ? this.renderAdminPortal() : this.renderEvaluatorPortal()}
 
         {/* Custom Confirmation / Alert Modal */}
         {this.state.confirmModal && (
@@ -296,7 +317,10 @@ export default class Home extends Component {
             cancelText={this.state.confirmModal.cancelText}
             isProcessing={this.state.confirmModal.isProcessing}
             processingText={this.state.confirmModal.processingText}
-            onClose={this.state.confirmModal.onClose || (() => this.setState({ confirmModal: null }))}
+            onClose={
+              this.state.confirmModal.onClose ||
+              (() => this.setState({ confirmModal: null }))
+            }
             onConfirm={this.state.confirmModal.onConfirm}
           />
         )}
@@ -326,25 +350,37 @@ export default class Home extends Component {
           /* If session is active or ended */
           <div className="space-y-6">
             {/* Status Card */}
-            <div className={`p-6 rounded-2xl border shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-              this.state.elStarted && !this.state.elEnded
-                ? 'bg-emerald-950/40 border-emerald-600/50'
-                : 'bg-slate-800 border-slate-700'
-            }`}>
+            <div
+              className={`p-6 rounded-2xl border shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                this.state.elStarted && !this.state.elEnded
+                  ? 'bg-emerald-950/40 border-emerald-600/50'
+                  : 'bg-slate-800 border-slate-700'
+              }`}
+            >
               <div>
                 <div className="flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${
-                    this.state.elStarted && !this.state.elEnded ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
-                  }`} />
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      this.state.elStarted && !this.state.elEnded
+                        ? 'bg-emerald-400 animate-pulse'
+                        : 'bg-rose-500'
+                    }`}
+                  />
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                    {this.state.elStarted && !this.state.elEnded ? 'Evaluation Round Active' : 'Evaluation Round Concluded'}
+                    {this.state.elStarted && !this.state.elEnded
+                      ? 'Evaluation Round Active'
+                      : 'Evaluation Round Concluded'}
                   </span>
                 </div>
                 <h2 className="text-xl md:text-2xl font-extrabold text-white mt-1 capitalize">
-                  {this.state.elDetails.newsdetectionTitle || "Fact-Checking Session"}
+                  {this.state.elDetails.newsdetectionTitle || 'Fact-Checking Session'}
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  Admin: <strong className="text-slate-200 capitalize">{this.state.elDetails.adminName}</strong> ({this.state.elDetails.adminEmail})
+                  Admin:{' '}
+                  <strong className="text-slate-200 capitalize">
+                    {this.state.elDetails.adminName}
+                  </strong>{' '}
+                  ({this.state.elDetails.adminEmail})
                 </p>
               </div>
 
@@ -368,50 +404,50 @@ export default class Home extends Component {
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">Add & Manage News</h3>
                   <p className="text-slate-400 text-xs leading-relaxed">
-                    Publish headlines or articles to the blockchain for crowd evaluator verification.
+                    Submit news statements, URL articles, or PDF documents into smart contract storage with AI analysis.
                   </p>
                 </div>
                 <Link
                   to="/AddNews"
                   className="mt-5 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 px-4 rounded-lg text-sm text-center block transition-colors"
                 >
-                  Manage News &rarr;
+                  Add News &rarr;
                 </Link>
               </div>
 
-              <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl flex flex-col justify-between hover:border-emerald-500 transition-all shadow-lg">
+              <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl flex flex-col justify-between hover:border-sky-500 transition-all shadow-lg">
                 <div>
                   <div className="h-12 w-12 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center mb-4">
                     <UserGroupIcon className="h-6 w-6" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">Authenticate Evaluators</h3>
                   <p className="text-slate-400 text-xs leading-relaxed">
-                    Review and verify evaluator profiles (journalists, fact-checkers) to grant voting rights.
+                    Review incoming registrations and verify legitimate journalists and community members to evaluate.
                   </p>
                 </div>
                 <Link
                   to="/Verification"
                   className="mt-5 w-full bg-sky-600 hover:bg-sky-500 text-white font-medium py-2 px-4 rounded-lg text-sm text-center block transition-colors"
                 >
-                  Verify Evaluators &rarr;
+                  Manage Evaluators &rarr;
                 </Link>
               </div>
 
-              <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl flex flex-col justify-between hover:border-emerald-500 transition-all shadow-lg">
+              <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl flex flex-col justify-between hover:border-indigo-500 transition-all shadow-lg">
                 <div>
-                  <div className="h-12 w-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
+                  <div className="h-12 w-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-4">
                     <ChartPieIcon className="h-6 w-6" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">Final Outcomes (NLP)</h3>
                   <p className="text-slate-400 text-xs leading-relaxed">
-                    View final synthesized fact verification outcomes combining human evaluation and continuous NLP.
+                    View dual-verification synthesis combining decentralized votes with the continuous NLP model.
                   </p>
                 </div>
                 <Link
                   to="/Final_Outcomes"
-                  className="mt-5 w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-2 px-4 rounded-lg text-sm text-center block transition-colors"
+                  className="mt-5 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-4 rounded-lg text-sm text-center block transition-colors"
                 >
-                  View Final Outcomes &rarr;
+                  View Final Results &rarr;
                 </Link>
               </div>
             </div>
@@ -439,45 +475,51 @@ export default class Home extends Component {
             <label className="block text-sm font-medium text-slate-300 mb-1">First Name *</label>
             <input
               className="bg-slate-900 border border-slate-700 text-white p-3 rounded-lg w-full text-sm focus:border-emerald-500 focus:outline-none"
-              placeholder="e.g. Anisul"
+              placeholder="e.g. John"
               {...register('adminFName', { required: true })}
             />
-            {errors.adminFName && <span className="text-xs text-rose-400 mt-1 block">First name is required</span>}
+            {errors.adminFName && (
+              <span className="text-xs text-rose-400 mt-1 block">First name is required</span>
+            )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Last Name</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Last Name *</label>
             <input
               className="bg-slate-900 border border-slate-700 text-white p-3 rounded-lg w-full text-sm focus:border-emerald-500 focus:outline-none"
-              placeholder="e.g. Mahmud"
-              {...register('adminLName')}
+              placeholder="e.g. Doe"
+              {...register('adminLName', { required: true })}
             />
+            {errors.adminLName && (
+              <span className="text-xs text-rose-400 mt-1 block">Last name is required</span>
+            )}
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Admin Email *</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1">Email *</label>
           <input
             className="bg-slate-900 border border-slate-700 text-white p-3 rounded-lg w-full text-sm focus:border-emerald-500 focus:outline-none"
-            placeholder="e.g. admin@publisher.org"
-            {...register('adminEmail', {
-              required: 'Email is required',
-              pattern: {
-                value: /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$/,
-                message: 'Invalid email address',
-              },
-            })}
+            placeholder="e.g. admin@news.org"
+            type="email"
+            {...register('adminEmail', { required: true })}
           />
-          {errors.adminEmail && <span className="text-xs text-rose-400 mt-1 block">{errors.adminEmail.message}</span>}
+          {errors.adminEmail && (
+            <span className="text-xs text-rose-400 mt-1 block">Valid email is required</span>
+          )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">News Detection Title *</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1">
+            Fact-Checking Session Title *
+          </label>
           <input
             className="bg-slate-900 border border-slate-700 text-white p-3 rounded-lg w-full text-sm focus:border-emerald-500 focus:outline-none"
-            placeholder="e.g. National Fact Verification Round 2026"
+            placeholder="e.g. 2026 Global Election Misinformation Verification"
             {...register('newsdetectionTitle', { required: true })}
           />
-          {errors.newsdetectionTitle && <span className="text-xs text-rose-400 mt-1 block">Session title is required</span>}
+          {errors.newsdetectionTitle && (
+            <span className="text-xs text-rose-400 mt-1 block">Session title is required</span>
+          )}
         </div>
 
         <button

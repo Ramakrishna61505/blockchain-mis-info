@@ -637,10 +637,12 @@ export default class Result extends Component {
   };
 
   render() {
+    const isPortalAdmin = sessionStorage.getItem('portalRole') === 'admin';
+
     if (!this.state.web3) {
       return (
         <>
-          {this.state.isAdmin ? <NavbarAdmin /> : <Navbar />}
+          {isPortalAdmin ? <NavbarAdmin /> : <Navbar />}
           <div className="flex items-center justify-center min-h-[60vh] text-slate-300">
             Connecting to Web3 & Blockchain...
           </div>
@@ -650,7 +652,7 @@ export default class Result extends Component {
 
     return (
       <div className="md:ml-64 pt-16 md:pt-6 px-4 pb-12 min-h-screen">
-        {this.state.isAdmin ? <NavbarAdmin /> : <Navbar />}
+        {isPortalAdmin ? <NavbarAdmin /> : <Navbar />}
 
         <div className="max-w-5xl mx-auto space-y-6">
           {/* Header */}
